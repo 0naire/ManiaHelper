@@ -1,5 +1,22 @@
 # Updates
 
+## 1.3.0 — Larger HUD, distribution and player profile
+
+- Enlarge the default judgement HUD to 110% and keep it outside the right edge of the lane.
+- Add a live early/late timing-distribution graph beneath judgement statistics.
+- Put the logged-in player's avatar/name at the top of the HUD, then country-flag-first rank rows for mania 4K/7K, followed by accuracy, judgements and the timing graph.
+- Read official public profile data on account changes and at a ten-minute interval; do not fall back to combined mania rankings.
+- Add separate graph/profile visibility controls and a scrollable HUD preview in settings.
+- Use official country-flag images instead of country-code text, and reopen settings when the already-running app is launched again.
+
+## 1.2.1 — In-game HUD
+
+- Remove the in-game card background, outline, header and extra padding.
+- Use compact MA/PR/GR/GD/BD/MS rows with aligned numbers and only a subtle text shadow.
+- Default to the right of the 4K lane, aligned relative to the skin's combo position.
+- Match the settings preview to the borderless HUD style.
+- Support an explicit manual `--start` option to start directly in the tray without opening settings.
+
 ## 1.2.0 — Mania Helper
 
 - Rename the app and executable to **Mania Helper** / `ManiaHelper.exe`.

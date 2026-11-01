@@ -6,3 +6,4 @@ runtime/tosu.exe
 runtime/game-overlay/
 runtime/logs/
 *.new
+runtime/static/ZeroTimingBar/player.json
