@@ -19,7 +19,7 @@ internal static class Entry {
     [STAThread] static void Main(string[] args) {
         bool created;
         using (var mutex = new Mutex(true, "Local\\0naireManiaHelper", out created)) {
-            if (!created) { if(Array.IndexOf(args,"--start")<0)try{using(var request=EventWaitHandle.OpenExisting("Local\\0naireManiaHelperShowSettings"))request.Set();}catch{} return; }
+            if (!created) { try{using(var request=EventWaitHandle.OpenExisting("Local\\0naireManiaHelperShowSettings"))request.Set();}catch{} return; }
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new TimingForm(Array.IndexOf(args,"--start")>=0));
@@ -39,7 +39,6 @@ internal sealed class TimingForm : Form {
     readonly StatsPreview statsPreview=new StatsPreview();
     readonly TracePreview trace = new TracePreview();
     readonly CheckBox preview = new CheckBox();
-    readonly CheckBox hideAfterStart=new CheckBox();
     readonly NotifyIcon tray=new NotifyIcon();
     readonly EventWaitHandle showSettingsRequest=new EventWaitHandle(false,EventResetMode.AutoReset,"Local\\0naireManiaHelperShowSettings");
     readonly System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer();
@@ -78,9 +77,7 @@ internal sealed class TimingForm : Form {
         Controls.Add(preview);
         SetButton(fit, "스킨에 맞추기", 450, 471, 190, 36);
         fit.Click += delegate { FitToSkin(); };
-        hideAfterStart.Text="시작 후 설정창 숨기기";hideAfterStart.SetBounds(30,532,330,29);hideAfterStart.Checked=true;
-        hideAfterStart.CheckedChanged+=delegate{if(!loading)SaveLayout(backend!=null);};Controls.Add(hideAfterStart);
-        AddLabel("트레이 아이콘을 더블클릭하면 설정이 다시 열립니다.",30,568,600,25,8.5F).ForeColor=Color.FromArgb(157,159,176);
+        AddLabel("시작 후에도 설정창이 유지됩니다.\r\n최소화한 창은 작업 표시줄에서 다시 열 수 있습니다.",30,535,610,52,9F).ForeColor=Color.FromArgb(157,159,176);
         AddLabel("GAME HUD PREVIEW",670,110,320,24,10F).ForeColor=Color.FromArgb(157,159,176);
         var previewScroll=new Panel{AutoScroll=true};previewScroll.SetBounds(670,146,320,330);Controls.Add(previewScroll);
         statsPreview.SetBounds(0,0,300,660);previewScroll.Controls.Add(statsPreview);
@@ -105,8 +102,7 @@ internal sealed class TimingForm : Form {
         trayMenu.Items.Add("도우미 중지",null,async delegate{await StopBackend();});
         trayMenu.Items.Add(new ToolStripSeparator());trayMenu.Items.Add("종료",null,delegate{Close();});
         tray.ContextMenuStrip=trayMenu;tray.DoubleClick+=delegate{ShowSettings();};
-        Resize+=delegate{if(WindowState==FormWindowState.Minimized)Hide();};
-        if(startDirect)Shown+=async delegate{Hide();await StartBackend();};
+        if(startDirect)Shown+=async delegate{await StartBackend();};
         LoadLayout();
         timer.Interval = 1500; timer.Tick += async delegate { await Poll(); }; timer.Start();
         previewTimer.Interval=250; previewTimer.Tick+=async delegate {if(showSettingsRequest.WaitOne(0))ShowSettings();trace.Invalidate();await PollPreview();};previewTimer.Start();
@@ -146,7 +142,6 @@ internal sealed class TimingForm : Form {
             statsEnabled.Checked=!obj.ContainsKey("statsEnabled")||Convert.ToBoolean(obj["statsEnabled"]);
             graphEnabled.Checked=!obj.ContainsKey("graphEnabled")||Convert.ToBoolean(obj["graphEnabled"]);
             playerEnabled.Checked=!obj.ContainsKey("playerEnabled")||Convert.ToBoolean(obj["playerEnabled"]);
-            hideAfterStart.Checked=!obj.ContainsKey("hideAfterStart")||Convert.ToBoolean(obj["hideAfterStart"]);
             if(obj.ContainsKey("comboPosition"))comboPosition=Convert.ToDouble(obj["comboPosition"]);
             if (obj.ContainsKey("skin")) skin = Convert.ToString(obj["skin"]);
             if (obj.ContainsKey("gamePath")) gamePath = Convert.ToString(obj["gamePath"]);
@@ -171,7 +166,6 @@ internal sealed class TimingForm : Form {
                 x = (double)x.Value, y = (double)y.Value, width = (double)width.Value, size=(double)size.Value,comboPosition=comboPosition,
                 statsX=(double)statsX.Value,statsY=(double)statsY.Value,statsSize=(double)statsSize.Value,statsEnabled=statsEnabled.Checked,
                 graphEnabled=graphEnabled.Checked,playerEnabled=playerEnabled.Checked,
-                hideAfterStart=hideAfterStart.Checked,
                 skin = skin, gamePath = gamePath, preview = preview.Checked, enabled = enabled
             }));
         } catch (Exception e) { if (!closing) status.Text = "위치 저장 실패: " + e.Message; }
@@ -262,7 +256,6 @@ internal sealed class TimingForm : Form {
             backend.BeginOutputReadLine(); backend.BeginErrorReadLine();
             stop.Enabled=true;
             await Task.Delay(900); await Poll();
-            if(!closing&&backend!=null&&!backend.HasExited&&hideAfterStart.Checked){Hide();tray.ShowBalloonTip(2000,"Mania Helper","백그라운드 실행 중 · 트레이 아이콘 더블클릭으로 설정 열기",ToolTipIcon.Info);}
         } catch (Exception e) {
             KillOwned(); SaveLayout(false); start.Enabled=true; stop.Enabled=false;
             if(!closing){status.Text="시작하지 못했습니다."; MessageBox.Show(this,e.Message,"판정 바 시작");}

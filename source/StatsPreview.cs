@@ -28,7 +28,7 @@ internal sealed class StatsPreview:Control {
         live=true;Invalidate();
     }
     public void SetTimings(IList errors){early=0;late=0;Array.Clear(distribution,0,distribution.Length);foreach(object raw in errors){if(raw==null)continue;double v;try{v=Convert.ToDouble(raw);}catch{continue;}if(double.IsNaN(v)||double.IsInfinity(v))continue;if(v<0)early++;else if(v>0)late++;int bin=(int)Math.Floor((Math.Max(-150,Math.Min(150,v))/150+1)*20+.5);distribution[bin]++;}Invalidate();}
-    void DrawText(Graphics g,string text,float size,Color color,Rectangle r,bool right=false){using(var f=new Font("Segoe UI",size))TextRenderer.DrawText(g,text,f,r,color,TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis|(right?TextFormatFlags.Right:TextFormatFlags.Left));}
+    void DrawText(Graphics g,string text,float size,Color color,Rectangle r,bool right=false){using(var f=new Font("Segoe UI",size))TextRenderer.DrawText(g,text,f,r,color,TextFormatFlags.PreserveGraphicsTranslateTransform|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis|(right?TextFormatFlags.Right:TextFormatFlags.Left));}
     protected override void OnPaint(PaintEventArgs e){
         var g=e.Graphics;g.SmoothingMode=SmoothingMode.AntiAlias;
         g.Clear(Parent!=null?Parent.BackColor:Color.FromArgb(18,19,25));
