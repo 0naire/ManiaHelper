@@ -19,6 +19,9 @@
 - The running helper fetched the actual logged-in account's official 4K and 7K country ranks into its local profile cache. The cache and fetched HTML are excluded from the public files.
 - The official country-flag image URL was verified to return PNG data.
 - Browser rendering confirmed the order: player identity, flag-first 4K/7K country-rank rows, accuracy/judgements, then the distribution graph. Both flag images loaded successfully and the HUD background remained transparent. The screenshot uses example player data.
+- Version 1.3.1 compiled successfully with all automatic-hide paths removed. The previous saved hide preference was discarded while position/size settings were preserved, and the connection to the running game resumed.
+- The revised settings window was inspected while connected. After minimizing it, the titled application window remained present instead of being hidden to the tray.
+- A manual `--start` launch kept the settings window available after connection; visual inspection also confirmed that profile/rank text no longer overlaps the accuracy preview.
 
 The finished in-game placement after the compact-style change has not been independently captured: the fullscreen game was minimized during inspection and computer control was stopped by the user. The backend connection and menu were checked; playfield visibility still depends on the game/overlay combination. If the overlay disappears after minimizing the game, stop and start the helper again after restoring osu!.
 
