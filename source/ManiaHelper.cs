@@ -16,13 +16,13 @@ using System.Web.Script.Serialization;
 using System.Windows.Forms;
 
 internal static class Entry {
-    [STAThread] static void Main() {
+    [STAThread] static void Main(string[] args) {
         bool created;
         using (var mutex = new Mutex(true, "Local\\0naireManiaHelper", out created)) {
-            if (!created) { MessageBox.Show("판정 바 프로그램이 이미 실행 중입니다."); return; }
+            if (!created) { if(Array.IndexOf(args,"--start")<0)try{using(var request=EventWaitHandle.OpenExisting("Local\\0naireManiaHelperShowSettings"))request.Set();}catch{} return; }
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new TimingForm());
+            Application.Run(new TimingForm(Array.IndexOf(args,"--start")>=0));
         }
     }
 }
@@ -35,21 +35,24 @@ internal sealed class TimingForm : Form {
     readonly NumericUpDown x = new NumericUpDown(), y = new NumericUpDown(), width = new NumericUpDown(), size = new NumericUpDown();
     readonly NumericUpDown statsX=new NumericUpDown(),statsY=new NumericUpDown(),statsSize=new NumericUpDown();
     readonly CheckBox statsEnabled=new CheckBox();
+    readonly CheckBox graphEnabled=new CheckBox(),playerEnabled=new CheckBox();
     readonly StatsPreview statsPreview=new StatsPreview();
     readonly TracePreview trace = new TracePreview();
     readonly CheckBox preview = new CheckBox();
     readonly CheckBox hideAfterStart=new CheckBox();
     readonly NotifyIcon tray=new NotifyIcon();
+    readonly EventWaitHandle showSettingsRequest=new EventWaitHandle(false,EventResetMode.AutoReset,"Local\\0naireManiaHelperShowSettings");
     readonly System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer();
     readonly System.Windows.Forms.Timer previewTimer = new System.Windows.Forms.Timer();
     Process backend;
     ChildJob job;
     bool loading, stopping, polling, closing, starting, previewPolling;
     double comboPosition=121;
+    int currentProfileId;bool profilePolling;DateTime lastProfileFetch=DateTime.MinValue;Task playerTask;
     string skin = "아직 연결되지 않음", gamePath = "";
     string Runtime { get { return Path.Combine(root, "runtime"); } }
     string LayoutPath { get { return Path.Combine(Runtime, "static", "ZeroTimingBar", "layout.json"); } }
-    public TimingForm() {
+    public TimingForm(bool startDirect=false) {
         Text = "Mania Helper · 0naire";
         ClientSize = new Size(1020, 712);
         FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -78,10 +81,13 @@ internal sealed class TimingForm : Form {
         hideAfterStart.Text="시작 후 설정창 숨기기";hideAfterStart.SetBounds(30,532,330,29);hideAfterStart.Checked=true;
         hideAfterStart.CheckedChanged+=delegate{if(!loading)SaveLayout(backend!=null);};Controls.Add(hideAfterStart);
         AddLabel("트레이 아이콘을 더블클릭하면 설정이 다시 열립니다.",30,568,600,25,8.5F).ForeColor=Color.FromArgb(157,159,176);
-        AddLabel("PERFORMANCE PANEL",670,110,320,24,10F).ForeColor=Color.FromArgb(157,159,176);
-        statsPreview.SetBounds(670,146,320,330);Controls.Add(statsPreview);
-        statsEnabled.Text="판정 패널 표시";statsEnabled.SetBounds(670,489,300,28);statsEnabled.Checked=true;
+        AddLabel("GAME HUD PREVIEW",670,110,320,24,10F).ForeColor=Color.FromArgb(157,159,176);
+        var previewScroll=new Panel{AutoScroll=true};previewScroll.SetBounds(670,146,320,330);Controls.Add(previewScroll);
+        statsPreview.SetBounds(0,0,300,660);previewScroll.Controls.Add(statsPreview);
+        statsEnabled.Text="판정 표시";statsEnabled.SetBounds(670,489,125,28);statsEnabled.Checked=true;
         statsEnabled.CheckedChanged+=delegate{if(!loading)SaveLayout(backend!=null);};Controls.Add(statsEnabled);
+        graphEnabled.Text="그래프";graphEnabled.SetBounds(800,489,90,28);graphEnabled.Checked=true;graphEnabled.CheckedChanged+=delegate{if(!loading)SaveLayout(backend!=null);};Controls.Add(graphEnabled);
+        playerEnabled.Text="프로필";playerEnabled.SetBounds(900,489,90,28);playerEnabled.Checked=true;playerEnabled.CheckedChanged+=delegate{if(!loading)SaveLayout(backend!=null);};Controls.Add(playerEnabled);
         ConfigureNumber(statsX,"패널 가로",670,533,-427,1281,100);
         ConfigureNumber(statsY,"패널 세로",780,533,0,480,100);
         ConfigureNumber(statsSize,"패널 크기 (%)",890,533,50,180,100);
@@ -100,10 +106,11 @@ internal sealed class TimingForm : Form {
         trayMenu.Items.Add(new ToolStripSeparator());trayMenu.Items.Add("종료",null,delegate{Close();});
         tray.ContextMenuStrip=trayMenu;tray.DoubleClick+=delegate{ShowSettings();};
         Resize+=delegate{if(WindowState==FormWindowState.Minimized)Hide();};
+        if(startDirect)Shown+=async delegate{Hide();await StartBackend();};
         LoadLayout();
         timer.Interval = 1500; timer.Tick += async delegate { await Poll(); }; timer.Start();
-        previewTimer.Interval=250; previewTimer.Tick+=async delegate {trace.Invalidate();await PollPreview();};previewTimer.Start();
-        FormClosing += delegate { closing = true; timer.Stop(); previewTimer.Stop(); preview.Checked = false; SaveLayout(false); KillOwned();tray.Visible=false;var icon=tray.Icon;tray.Dispose();if(icon!=null)icon.Dispose(); };
+        previewTimer.Interval=250; previewTimer.Tick+=async delegate {if(showSettingsRequest.WaitOne(0))ShowSettings();trace.Invalidate();await PollPreview();};previewTimer.Start();
+        FormClosing += delegate { closing = true; timer.Stop(); previewTimer.Stop(); preview.Checked = false; SaveLayout(false); KillOwned();tray.Visible=false;var icon=tray.Icon;tray.Dispose();if(icon!=null)icon.Dispose();showSettingsRequest.Dispose(); };
     }
     void ShowSettings(){Show();WindowState=FormWindowState.Normal;Activate();}
     [DllImport("user32.dll")] static extern bool DestroyIcon(IntPtr h);
@@ -135,14 +142,17 @@ internal sealed class TimingForm : Form {
         try {
             var obj = json.Deserialize<Dictionary<string, object>>(File.ReadAllText(LayoutPath));
             SetNumber(x, obj, "x", 425); SetNumber(y, obj, "y", 164); SetNumber(width, obj, "width", 80); SetNumber(size,obj,"size",120);
-            SetNumber(statsX,obj,"statsX",270);SetNumber(statsY,obj,"statsY",115);SetNumber(statsSize,obj,"statsSize",90);
+            SetNumber(statsX,obj,"statsX",660);SetNumber(statsY,obj,"statsY",86);SetNumber(statsSize,obj,"statsSize",110);
             statsEnabled.Checked=!obj.ContainsKey("statsEnabled")||Convert.ToBoolean(obj["statsEnabled"]);
+            graphEnabled.Checked=!obj.ContainsKey("graphEnabled")||Convert.ToBoolean(obj["graphEnabled"]);
+            playerEnabled.Checked=!obj.ContainsKey("playerEnabled")||Convert.ToBoolean(obj["playerEnabled"]);
             hideAfterStart.Checked=!obj.ContainsKey("hideAfterStart")||Convert.ToBoolean(obj["hideAfterStart"]);
             if(obj.ContainsKey("comboPosition"))comboPosition=Convert.ToDouble(obj["comboPosition"]);
             if (obj.ContainsKey("skin")) skin = Convert.ToString(obj["skin"]);
             if (obj.ContainsKey("gamePath")) gamePath = Convert.ToString(obj["gamePath"]);
-        } catch { x.Value=425; y.Value=164; width.Value=80; size.Value=120; statsX.Value=270;statsY.Value=115;statsSize.Value=90; }
+        } catch { x.Value=425; y.Value=164; width.Value=80; size.Value=120; statsX.Value=660;statsY.Value=86;statsSize.Value=110; }
         loading = false; skinLabel.Text = "스킨: " + skin; SaveLayout(false);
+        WritePlayer(new OsuPlayerProfile{status="Waiting for the logged-in player"});
     }
     static void SetNumber(NumericUpDown n, Dictionary<string, object> d, string key, decimal fallback) {
         decimal value = d.ContainsKey(key) ? Convert.ToDecimal(d[key]) : fallback;
@@ -156,10 +166,11 @@ internal sealed class TimingForm : Form {
     void SaveLayout(bool enabled) {
         try {
             trace.SetPlacement((double)x.Value,(double)y.Value,(double)width.Value,(double)size.Value,comboPosition);
-            statsPreview.SetPlacement((int)statsX.Value,(int)statsY.Value,(int)statsSize.Value,statsEnabled.Checked);
+            statsPreview.SetPlacement((int)statsX.Value,(int)statsY.Value,(int)statsSize.Value,statsEnabled.Checked,graphEnabled.Checked,playerEnabled.Checked);
             AtomicWrite(LayoutPath, json.Serialize(new {
                 x = (double)x.Value, y = (double)y.Value, width = (double)width.Value, size=(double)size.Value,comboPosition=comboPosition,
                 statsX=(double)statsX.Value,statsY=(double)statsY.Value,statsSize=(double)statsSize.Value,statsEnabled=statsEnabled.Checked,
+                graphEnabled=graphEnabled.Checked,playerEnabled=playerEnabled.Checked,
                 hideAfterStart=hideAfterStart.Checked,
                 skin = skin, gamePath = gamePath, preview = preview.Checked, enabled = enabled
             }));
@@ -196,7 +207,7 @@ internal sealed class TimingForm : Form {
             x.Value = Clamp(x, (decimal)(column + total / 2));
             y.Value = Clamp(y, (decimal)(combo + 43));
             width.Value = Clamp(width, (decimal)(total * .2857));
-            statsX.Value=Clamp(statsX,(decimal)(column-15));statsY.Value=Clamp(statsY,(decimal)Math.Max(0,combo-6));
+            statsX.Value=Clamp(statsX,(decimal)(column+total+95));statsY.Value=Clamp(statsY,(decimal)Math.Max(0,combo-35));
             loading = false; skinLabel.Text = "스킨: " + skin; SaveLayout(backend != null);
             status.Text = "현재 4K 스킨의 콤보 아래로 맞췄습니다.";
         } catch (Exception e) { loading=false; MessageBox.Show(this, e.Message, "스킨 확인"); }
@@ -251,7 +262,7 @@ internal sealed class TimingForm : Form {
             backend.BeginOutputReadLine(); backend.BeginErrorReadLine();
             stop.Enabled=true;
             await Task.Delay(900); await Poll();
-            if(!closing&&backend!=null&&!backend.HasExited&&hideAfterStart.Checked){Hide();tray.ShowBalloonTip(2000,"Mania Helper","게임 위에 표시 중 · 트레이 아이콘 더블클릭으로 설정 열기",ToolTipIcon.Info);}
+            if(!closing&&backend!=null&&!backend.HasExited&&hideAfterStart.Checked){Hide();tray.ShowBalloonTip(2000,"Mania Helper","백그라운드 실행 중 · 트레이 아이콘 더블클릭으로 설정 열기",ToolTipIcon.Info);}
         } catch (Exception e) {
             KillOwned(); SaveLayout(false); start.Enabled=true; stop.Enabled=false;
             if(!closing){status.Text="시작하지 못했습니다."; MessageBox.Show(this,e.Message,"판정 바 시작");}
@@ -309,11 +320,20 @@ internal sealed class TimingForm : Form {
                 skinLabel.Text="현재 스킨: "+Convert.ToString(currentSkin["name"]);
                 var state=(Dictionary<string,object>)d["state"];
                 statsPreview.SetPlay((Dictionary<string,object>)d["play"]);
+                if(playerEnabled.Checked&&d.ContainsKey("profile"))playerTask=UpdatePlayer((Dictionary<string,object>)d["profile"]);
                 tray.Text="Mania Helper · 실행 중";
                 status.Text=Convert.ToString(state["name"])=="play" ? "연결됨 · 플레이 판정 수신 중" : "연결됨 · 플레이가 시작되면 표시됩니다.";
             }
         } catch { if(!closing)status.Text="연결 대기 · 잠시 후 다시 확인합니다."; }
         finally {polling=false;}
+    }
+    void WritePlayer(OsuPlayerProfile p){try{AtomicWrite(Path.Combine(Runtime,"static","ZeroTimingBar","player.json"),json.Serialize(p));statsPreview.SetPlayer(p);}catch{}}
+    async Task UpdatePlayer(Dictionary<string,object> profile){
+        object raw;int id=profile.TryGetValue("id",out raw)?Convert.ToInt32(raw):0;
+        if(id!=currentProfileId){currentProfileId=id;lastProfileFetch=DateTime.MinValue;string country="";if(profile.TryGetValue("countryCode",out raw)){var c=raw as Dictionary<string,object>;if(c!=null&&c.TryGetValue("name",out raw))country=Convert.ToString(raw);}WritePlayer(new OsuPlayerProfile{id=id,name=profile.ContainsKey("name")?Convert.ToString(profile["name"]):"PLAYER",countryCode=country,status="Fetching official 4K country rank"});}
+        if(profilePolling||id<=0||DateTime.UtcNow-lastProfileFetch<TimeSpan.FromMinutes(10))return;
+        profilePolling=true;lastProfileFetch=DateTime.UtcNow;
+        try{var p=await OsuProfileProvider.FetchAsync(id);if(!closing&&currentProfileId==id)WritePlayer(p);}catch{}finally{profilePolling=false;}
     }
 }
 
