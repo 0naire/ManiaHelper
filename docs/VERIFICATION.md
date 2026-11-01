@@ -14,6 +14,11 @@
 - The web panel was rendered using clearly marked example values: 98.68% accuracy, 45.20 UR, 2,592 total judgements and a 3.92 MAX/PERFECT ratio. This rendered preview is included as `panel-preview.jpg`.
 - `tests/stats.test.mjs` passed checks for the six judgement mappings, total, the reference example's 1.55 ratio, zero denominators, zero-timing exclusion and invalid inputs.
 - Browser inspection confirmed that the timing segments have a fully transparent background.
+- The 1.3 distribution tests passed centre-bin, empty-data, total-count and edge-clamping checks.
+- Official-profile parser tests passed identity validation, separate 4K/7K country-rank selection, country parsing and rejection of a combined-mania-rank fallback.
+- The running helper fetched the actual logged-in account's official 4K and 7K country ranks into its local profile cache. The cache and fetched HTML are excluded from the public files.
+- The official country-flag image URL was verified to return PNG data.
+- Browser rendering confirmed the order: player identity, flag-first 4K/7K country-rank rows, accuracy/judgements, then the distribution graph. Both flag images loaded successfully and the HUD background remained transparent. The screenshot uses example player data.
 
 The finished in-game placement after the compact-style change has not been independently captured: the fullscreen game was minimized during inspection and computer control was stopped by the user. The backend connection and menu were checked; playfield visibility still depends on the game/overlay combination. If the overlay disappears after minimizing the game, stop and start the helper again after restoring osu!.
 
