@@ -1,0 +1,15 @@
+.performance{position:absolute;left:50%;top:24%;margin-left:-220px;width:220px;padding:17px 18px 14px;color:#f5f5fa;font-family:"Segoe UI",sans-serif;font-variant-numeric:tabular-nums;background:linear-gradient(145deg,rgba(25,28,42,.91),rgba(16,18,28,.83));border:1px solid rgba(218,222,255,.13);border-radius:15px;box-shadow:0 7px 22px #0003;transform-origin:100% 0;opacity:0;transition:opacity .15s ease;pointer-events:none}
+.performance header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.eyebrow{font-size:9px;letter-spacing:2px;font-weight:600;color:#b1b6ce}
+.live-dot{width:5px;height:5px;border-radius:50%;background:#8ad7c8}
+.accuracy{display:flex;align-items:baseline;gap:3px;line-height:1.1;letter-spacing:-1.3px}
+.accuracy strong{font-size:38px;font-weight:600}.accuracy>span{font-size:17px;color:#c4c7d8}
+.ur{display:flex;align-items:baseline;gap:5px;margin:7px 0 15px;color:#989fb8;font-size:9px;letter-spacing:.6px}
+.ur strong{margin-left:auto;font-size:16px;color:#dce0ed;font-weight:500;letter-spacing:0}
+.judgements{display:grid;gap:2px}.judgement{height:26px;padding:0 8px;display:flex;align-items:center;justify-content:space-between;border-left:2px solid var(--tone);border-radius:0 4px 4px 0;background:rgba(255,255,255,.025)}
+.judgement span{font-size:10px;letter-spacing:1px;color:var(--tone);font-weight:600}.judgement strong{font-size:15px;font-weight:500;letter-spacing:.2px}
+.max{--tone:#7fe7e4}.perfect{--tone:#f5d790}.great{--tone:#99d5b2}.good{--tone:#a2b8ff}.bad{--tone:#cfacf3}.miss{--tone:#f291a1}
+.timing-split{display:flex;gap:8px;margin-top:13px}.timing-split>div{flex:1;padding:8px 9px;background:rgba(255,255,255,.035);border-radius:6px;display:flex;justify-content:space-between;align-items:center}
+.timing-split span{font-size:9px;letter-spacing:.7px;color:#7fd7cf}.timing-split>div+div span{color:#e7a4b9}.timing-split strong{font-size:12px;font-weight:500}
+.performance footer{margin-top:12px;padding-top:10px;border-top:1px solid #ffffff10;display:flex;justify-content:space-between;gap:10px}.performance footer>div{display:flex;flex-direction:column;gap:3px}.performance footer>div+div{text-align:right}
+.performance footer span{font-size:8px;letter-spacing:1px;color:#929ab4}.performance footer strong{font-size:14px;font-weight:500;color:#d9deed}

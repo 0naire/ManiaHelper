@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mania Helper · 0naire</title><link rel="stylesheet" href="vendor/meter.css">
+<link rel="stylesheet" href="stats.css?v=1">
+<style>
+html,body{width:100%;height:100%;background:transparent;pointer-events:none}
+.main{bottom:auto;right:auto;left:50%;top:36.25%;width:720px;transform-origin:50% 50%;translate:-50% -50%}
+#unstableRate,.inGameScoreMeterHider{display:none!important}
+.hitErrorMeterContainer{margin:0;transition:opacity .12s linear;filter:none}
+.hitWindow,.mainTick,.tick{border-radius:0!important}
+.hitWindow{height:0;background:transparent!important}
+.mainTick{width:2px!important;background:#f35879!important;box-shadow:none}
+.tick{background:#f4f4f5!important;box-shadow:none;mix-blend-mode:normal}
+.segments{transition:none}
+.movingAverageArrow{margin-bottom:3px!important;fill:#edb5c9!important;filter:none!important}
+</style></head><body>
+<div class="main"><div id="unstableRate"></div><div class="hitErrorMeterContainer">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 8" fill="white" class="movingAverageArrow"><path d="M0 0H14L7 8Z"/></svg>
+<div class="segments"><div class="earlyWindows windowsContainer">
+<div id="hit320Early" class="hit320 hitWindow"></div><div id="hit300Early" class="hit300 hitWindow"></div><div id="hit200Early" class="hit200 hitWindow"></div><div id="hit100Early" class="hit100 hitWindow"></div><div id="hit50Early" class="hit50 hitWindow"></div></div>
+<div class="mainTick"></div><div class="lateWindows windowsContainer">
+<div id="hit320Late" class="hit320 hitWindow"></div><div id="hit300Late" class="hit300 hitWindow"></div><div id="hit200Late" class="hit200 hitWindow"></div><div id="hit100Late" class="hit100 hitWindow"></div><div id="hit50Late" class="hit50 hitWindow"></div></div></div></div>
+<div class="inGameScoreMeterHider"><img id="background"></div></div>
+<aside class="performance" aria-label="실시간 정확도와 세부 판정">
+<header><span class="eyebrow">PERFORMANCE</span><span class="live-dot"></span></header>
+<div class="accuracy"><strong id="stats-accuracy">100.00</strong><span>%</span></div>
+<div class="ur"><span>UNSTABLE RATE</span><strong id="stats-ur">0.00</strong><span>UR</span></div>
+<div class="judgements">
+<div class="judgement max"><span>MAX</span><strong id="stats-0">0</strong></div>
+<div class="judgement perfect"><span>PERFECT</span><strong id="stats-1">0</strong></div>
+<div class="judgement great"><span>GREAT</span><strong id="stats-2">0</strong></div>
+<div class="judgement good"><span>GOOD</span><strong id="stats-3">0</strong></div>
+<div class="judgement bad"><span>BAD</span><strong id="stats-4">0</strong></div>
+<div class="judgement miss"><span>MISS</span><strong id="stats-5">0</strong></div>
+</div>
+<div class="timing-split"><div><span>EARLY</span><strong id="stats-early">0</strong></div><div><span>LATE</span><strong id="stats-late">0</strong></div></div>
+<footer><div><span>TOTAL</span><strong id="stats-total">0</strong></div><div><span>MAX / PERFECT</span><strong id="stats-ratio">—</strong></div></footer>
+</aside>
+<script type="module" src="timing.js?v=3"></script></body></html>
