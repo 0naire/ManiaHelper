@@ -24,7 +24,7 @@ try {
         Expand-Archive -LiteralPath $archive -DestinationPath $asset.Destination -Force
     }
     Write-Host ''
-    Write-Host 'Setup complete. Open ManiaTimingBar.exe and click Start when you want to use it.' -ForegroundColor Green
+    Write-Host 'Setup complete. Open ManiaHelper.exe and click Start when you want to use it.' -ForegroundColor Green
     Write-Host 'Nothing was added to Windows startup. The app has not been started.'
 } catch {
     Write-Host ('Setup failed: ' + $_.Exception.Message) -ForegroundColor Red
