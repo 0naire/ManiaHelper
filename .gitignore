@@ -1,0 +1,8 @@
+last-run.log
+.setup-cache/
+.cache/
+backup/
+runtime/tosu.exe
+runtime/game-overlay/
+runtime/logs/
+*.new
