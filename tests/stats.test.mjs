@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {summarizePlay,countTimings} from '../runtime/static/ZeroTimingBar/stats-model.js';
+import {summarizePlay,countTimings,buildDistribution} from '../runtime/static/ZeroTimingBar/stats-model.js';
 const sample=summarizePlay({accuracy:93.56,unstableRate:341.17,hits:{geki:6519,'300':4213,katu:1172,'100':206,'50':68,'0':125}},countTimings([-23,-1,0,4,12,NaN,null]));
 assert.deepEqual(sample.counts,[6519,4213,1172,206,68,125]);
 assert.equal(sample.total,12303);
@@ -14,3 +14,7 @@ assert.deepEqual(countTimings([]),{early:0,late:0});
 assert.equal(summarizePlay({accuracy:105,unstableRate:-4}).accuracy,100);
 assert.equal(summarizePlay({accuracy:NaN,unstableRate:-4}).ur,0);
 console.log('PASS: judgement mapping, totals, ratio, zero handling, early/late and invalid values');
+const graph=buildDistribution([-300,-150,-1,0,1,150,400,NaN,null]);
+assert.equal(graph.total,7);assert.equal(graph.bins.reduce((a,b)=>a+b,0),7);assert.equal(graph.bins[0],2);assert.equal(graph.bins[40],2);assert.equal(graph.bins[20],3);
+assert.equal(buildDistribution([]).max,1);
+console.log('PASS: timing distribution bins, centre, empty data and edge clamping');
