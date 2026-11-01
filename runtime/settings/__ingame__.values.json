@@ -1,0 +1,25 @@
+{
+  "ingame_profile": "default",
+  "obs_profile": "default",
+  "profiles": [
+    {
+      "overlays": [
+        {
+          "scale": 1,
+          "_settings": false,
+          "id": 1,
+          "top": 0,
+          "height": 1440,
+          "left": 0,
+          "url": "http://127.0.0.1:24050/ZeroTimingBar/",
+          "_enabled": true,
+          "folderName": "ZeroTimingBar",
+          "z_index": 1,
+          "width": 2560
+        }
+      ],
+      "name": "default",
+      "id": "default"
+    }
+  ]
+}
