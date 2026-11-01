@@ -1,5 +1,13 @@
 # Updates
 
+## 1.3.1 — Keep settings on the taskbar
+
+- Keep the settings window open after starting the helper, including manual `--start` launches.
+- Minimize normally to the Windows taskbar without hiding to the tray.
+- Remove the automatic-hide option and ignore its setting from older versions.
+- Reopening the app brings its existing settings window back, including duplicate `--start` launches.
+- Respect the profile area's vertical offset when drawing text in the settings preview.
+
 ## 1.3.0 — Larger HUD, distribution and player profile
 
 - Enlarge the default judgement HUD to 110% and keep it outside the right edge of the lane.
