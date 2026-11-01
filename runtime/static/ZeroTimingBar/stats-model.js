@@ -14,3 +14,13 @@ export function countTimings(errors = []) {
   for(const v of errors)if(typeof v==='number'&&Number.isFinite(v)){if(v<0)early++;else if(v>0)late++;}
   return {early,late};
 }
+export function buildDistribution(errors=[],binCount=41,limit=150){
+  binCount=Math.max(3,Math.min(81,Math.trunc(binCount)))|1;
+  limit=Number.isFinite(limit)&&limit>0?limit:150;
+  const bins=Array(binCount).fill(0);let total=0;
+  for(const v of errors)if(typeof v==='number'&&Number.isFinite(v)){
+    const index=Math.round((Math.max(-limit,Math.min(limit,v))/limit+1)*(binCount-1)/2);
+    bins[index]++;total++;
+  }
+  return {bins,total,limit,max:Math.max(1,...bins)};
+}

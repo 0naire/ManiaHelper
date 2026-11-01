@@ -1,16 +1,18 @@
 {
   "statsEnabled": true,
-  "statsY": 115,
+  "statsY": 86,
   "comboPosition": 121,
-  "statsX": 270,
+  "statsX": 660,
   "x": 425,
   "enabled": false,
   "preview": false,
   "skin": "",
   "y": 164,
   "width": 80,
-  "statsSize": 90,
+  "statsSize": 110,
   "gamePath": "",
   "size": 120,
-  "hideAfterStart": true
+  "hideAfterStart": true,
+  "graphEnabled": true,
+  "playerEnabled": true
 }

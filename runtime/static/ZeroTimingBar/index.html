@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mania Helper · 0naire</title><link rel="stylesheet" href="vendor/meter.css">
-<link rel="stylesheet" href="stats.css?v=1">
+<link rel="stylesheet" href="stats.css?v=1.3.1">
 <style>
 html,body{width:100%;height:100%;background:transparent;pointer-events:none}
 .main{bottom:auto;right:auto;left:50%;top:36.25%;width:720px;transform-origin:50% 50%;translate:-50% -50%}
@@ -26,14 +26,16 @@ html,body{width:100%;height:100%;background:transparent;pointer-events:none}
 <div class="accuracy"><strong id="stats-accuracy">100.00</strong><span>%</span></div>
 <div class="ur"><span>UNSTABLE RATE</span><strong id="stats-ur">0.00</strong><span>UR</span></div>
 <div class="judgements">
-<div class="judgement max"><span>MAX</span><strong id="stats-0">0</strong></div>
-<div class="judgement perfect"><span>PERFECT</span><strong id="stats-1">0</strong></div>
-<div class="judgement great"><span>GREAT</span><strong id="stats-2">0</strong></div>
-<div class="judgement good"><span>GOOD</span><strong id="stats-3">0</strong></div>
-<div class="judgement bad"><span>BAD</span><strong id="stats-4">0</strong></div>
-<div class="judgement miss"><span>MISS</span><strong id="stats-5">0</strong></div>
+<div class="judgement max"><span title="MAX (320)">MA</span><strong id="stats-0">0</strong></div>
+<div class="judgement perfect"><span title="PERFECT (300)">PR</span><strong id="stats-1">0</strong></div>
+<div class="judgement great"><span title="GREAT (200)">GR</span><strong id="stats-2">0</strong></div>
+<div class="judgement good"><span title="GOOD (100)">GD</span><strong id="stats-3">0</strong></div>
+<div class="judgement bad"><span title="BAD (50)">BD</span><strong id="stats-4">0</strong></div>
+<div class="judgement miss"><span title="MISS">MS</span><strong id="stats-5">0</strong></div>
 </div>
 <div class="timing-split"><div><span>EARLY</span><strong id="stats-early">0</strong></div><div><span>LATE</span><strong id="stats-late">0</strong></div></div>
-<footer><div><span>TOTAL</span><strong id="stats-total">0</strong></div><div><span>MAX / PERFECT</span><strong id="stats-ratio">—</strong></div></footer>
+<footer><div><span>TOTAL</span><strong id="stats-total">0</strong></div><div><span title="MAX / PERFECT">RATIO</span><strong id="stats-ratio">—</strong></div></footer>
+<section class="distribution"><div class="graph-heading"><span>TIMING</span><span id="graph-count">0 HITS</span></div><svg id="timing-graph" viewBox="0 0 155 60" aria-label="빠른 입력과 늦은 입력의 분포"></svg><div class="graph-axis"><span>EARLY</span><span>0</span><span>LATE</span></div></section>
+<section class="player-profile"><div class="player-ranks"><div class="player-country-row"><img class="player-flag" alt=""><strong id="player-rank4">— (4 Keys)</strong></div><div class="player-country-row"><img class="player-flag" alt=""><strong id="player-rank7">— (7 Keys)</strong></div></div><div class="player-summary"><div class="avatar-wrap"><span id="player-initials">P</span><img id="player-avatar" alt=""></div><div class="player-details"><strong id="player-name">PLAYER</strong><span id="player-country" hidden></span></div></div></section>
 </aside>
-<script type="module" src="timing.js?v=3"></script></body></html>
+<script type="module" src="timing.js?v=1.3.0"></script></body></html>
