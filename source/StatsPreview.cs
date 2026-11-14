@@ -33,7 +33,8 @@ internal sealed class StatsPreview:Control {
         var g=e.Graphics;g.SmoothingMode=SmoothingMode.AntiAlias;
         g.Clear(Parent!=null?Parent.BackColor:Color.FromArgb(18,19,25));
         Color muted=Color.FromArgb(156,163,186),white=Color.FromArgb(239,241,248);
-        DrawText(g,(shown?(live?"LIVE":"예시"):"숨김")+" · "+percent+"%",8F,tones[0],new Rectangle(142,0,160,20),true);
+        if (!shown || !live)
+            DrawText(g,shown?"미리보기":"숨김",8F,tones[0],new Rectangle(142,0,160,20),true);
         var contentState=g.Save();if(playerShown)g.TranslateTransform(0,110);
         DrawText(g,accuracy.ToString("F2",CultureInfo.InvariantCulture)+"%",29F,white,new Rectangle(35,23,265,48),true);
         DrawText(g,ur.ToString("F2",CultureInfo.InvariantCulture)+" UR",16F,white,new Rectangle(35,69,265,30),true);

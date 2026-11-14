@@ -1,5 +1,11 @@
 # Updates
 
+## 1.4.0 — Compact settings and osu! auto-start
+
+- Simplify the settings window and keep the timing and HUD previews and controls.
+- Enable automatic connection on osu!stable launch after setup, with a settings toggle and manual start and stop.
+- Download the verified tosu archives concurrently, speed up extraction and skip installed components on repeat runs.
+
 ## 1.3.1 — Keep settings on the taskbar
 
 - Keep the settings window open after starting the helper, including manual `--start` launches.
