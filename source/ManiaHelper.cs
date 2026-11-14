@@ -73,7 +73,7 @@ internal sealed class TimingForm : Form {
     readonly int sessionId;
     double comboPosition=121;
     int currentProfileId;bool profilePolling;DateTime lastProfileFetch=DateTime.MinValue;Task playerTask;
-    string skin = "—", gamePath = "";
+    string skin = "—", gamePath = "", connectedGame, sizedFor;
     string Runtime { get { return Path.Combine(root, "runtime"); } }
     string LayoutPath { get { return Path.Combine(Runtime, "static", "ZeroTimingBar", "layout.json"); } }
     public TimingForm(bool startDirect=false) {
@@ -99,6 +99,11 @@ internal sealed class TimingForm : Form {
         preview.Text = "게임 메뉴에서 미리보기"; preview.SetBounds(24, 302, 260, 29);
         preview.CheckedChanged += delegate { if (!loading) SaveLayout(backend != null); };
         Controls.Add(preview);
+        var chooseGame = new SoftButton();
+        SetButton(chooseGame, "osu! 위치 선택", 303, 298, 139, 36);
+        chooseGame.Click += delegate {
+            if (ChooseGame() && backend == null) status.Text = "osu! 위치 저장됨";
+        };
         SetButton(fit, "스킨에 맞추기", 454, 298, 170, 36);
         fit.Click += delegate { FitToSkin(); };
         AddLabel("판정 HUD", 656, 20, 320, 29, 13F);
@@ -239,13 +244,27 @@ internal sealed class TimingForm : Form {
             }));
         } catch (Exception e) { if (!closing) status.Text = "위치 저장 실패: " + e.Message; }
     }
+    bool ChooseGame() {
+        using (var dialog = new OpenFileDialog()) {
+            dialog.Title = "osu!stable 위치 선택";
+            dialog.Filter = "osu!stable (osu!.exe)|osu!.exe";
+            if (OsuInstallation.ValidExecutable(gamePath) != null)
+                dialog.InitialDirectory = Path.GetDirectoryName(gamePath);
+            if (dialog.ShowDialog(this) != DialogResult.OK) return false;
+            string selected = OsuInstallation.ValidExecutable(dialog.FileName);
+            if (selected == null) return false;
+            gamePath = selected;
+            SaveLayout(backend != null);
+            return true;
+        }
+    }
     void FitToSkin() {
         try {
-            foreach (var p in Process.GetProcessesByName("osu!")) {
-                try { gamePath = p.MainModule.FileName; break; } catch { } finally { p.Dispose(); }
-            }
+            string resolved = OsuInstallation.Resolve(connectedGame, gamePath);
+            if (resolved != null) gamePath = resolved;
+            else if (!ChooseGame()) return;
             string dir = Path.GetDirectoryName(gamePath);
-            string cfg = Path.Combine(dir, "osu!." + Environment.UserName + ".cfg");
+            string cfg = OsuInstallation.ConfigPath(gamePath, Environment.UserName);
             string text = File.ReadAllText(cfg);
             Match name = Regex.Match(text, @"(?m)^Skin\s*=\s*(.+)$");
             if (!name.Success) throw new Exception("현재 스킨 이름을 찾을 수 없습니다.");
@@ -280,13 +299,10 @@ internal sealed class TimingForm : Form {
         var m = Regex.Match(text, @"(?im)^" + key + @"\s*:\s*([\d.]+)");
         return m.Success ? double.Parse(m.Groups[1].Value,CultureInfo.InvariantCulture) : fallback;
     }
-    void PrepareOverlaySize() {
+    void PrepareOverlaySize(string executable) {
         int w=Screen.PrimaryScreen.Bounds.Width, h=Screen.PrimaryScreen.Bounds.Height;
-        foreach(var process in Process.GetProcessesByName("osu!")){
-            try{gamePath=process.MainModule.FileName;break;}catch{}finally{process.Dispose();}
-        }
         try{
-            string cfg=File.ReadAllText(Path.Combine(Path.GetDirectoryName(gamePath),"osu!."+Environment.UserName+".cfg"));
+            string cfg = executable == null ? "" : File.ReadAllText(OsuInstallation.ConfigPath(executable, Environment.UserName));
             bool full=Regex.IsMatch(cfg,@"(?m)^Fullscreen\s*=\s*1\s*$");
             var wm=Regex.Match(cfg,@"(?m)^"+(full?"WidthFullscreen":"Width")+@"\s*=\s*(\d+)");
             var hm=Regex.Match(cfg,@"(?m)^"+(full?"HeightFullscreen":"Height")+@"\s*=\s*(\d+)");
@@ -295,6 +311,7 @@ internal sealed class TimingForm : Form {
         var overlay=new { _enabled=true,_settings=false,id=1,folderName="ZeroTimingBar",url="http://127.0.0.1:24050/ZeroTimingBar/",width=w,height=h,top=0,left=0,scale=1,z_index=1 };
         var config=new {obs_profile="default",ingame_profile="default",profiles=new[]{new{id="default",name="default",overlays=new[]{overlay}}}};
         AtomicWrite(Path.Combine(Runtime,"settings","__ingame__.values.json"),json.Serialize(config));
+        sizedFor = executable;
     }
     int RunningGameId() {
         int gameId = 0;
@@ -323,6 +340,9 @@ internal sealed class TimingForm : Form {
         if (closing || backend != null || stopping || starting) return;
         starting=true; start.Enabled=false;
         try {
+            if (!File.Exists(Path.Combine(Runtime, "static", "ZeroTimingBar", "index.html")) ||
+                !File.Exists(Path.Combine(Runtime, "tosu.env")) || !Directory.Exists(Path.Combine(Runtime, "settings")))
+                throw new Exception("오버레이 파일이 없습니다. runtime 폴더를 확인해 주세요.");
             if(!File.Exists(Path.Combine(Runtime,"tosu.exe")) || !File.Exists(Path.Combine(Runtime,"game-overlay","tosu-ingame-overlay.exe")))
                 throw new Exception("연결 구성 요소가 없습니다. 폴더의 Setup.cmd를 한 번 실행한 뒤 다시 시작해 주세요.");
             // A pre-existing local tosu belongs to the user; do not attach to or stop it.
@@ -333,7 +353,9 @@ internal sealed class TimingForm : Form {
             }
             if(closing)return;
             status.Text="연결 중…";
-            PrepareOverlaySize();
+            string resolved = OsuInstallation.Resolve(null, gamePath);
+            if (resolved != null) gamePath = resolved;
+            PrepareOverlaySize(resolved);
             SaveLayout(true);
             job=new ChildJob();
             var info = new ProcessStartInfo(Path.Combine(Runtime,"tosu.exe")) {
@@ -373,6 +395,7 @@ internal sealed class TimingForm : Form {
         if(!closing){start.Enabled=true;status.Text=gameClosed && autoStart.Checked ? "osu! 실행 대기" : "중지됨";}
     }
     void KillOwned() {
+        connectedGame = null;
         if(job!=null){job.Dispose();job=null;}
         if(backend!=null){try{if(!backend.HasExited)backend.Kill();}catch{}backend.Dispose();backend=null;}
         startedAutomatically = false;
@@ -410,7 +433,24 @@ internal sealed class TimingForm : Form {
             using(var reader=new StreamReader(response.GetResponseStream())) {
                 var d=json.Deserialize<Dictionary<string,object>>(await reader.ReadToEndAsync());
                 if(closing || stopping || backend != connectedBackend)return;
-                if(d.ContainsKey("error")){status.Text="osu! 연결 대기";return;}
+                if (d.ContainsKey("error")) {
+                    connectedGame = null;
+                    status.Text = "osu! 연결 대기";
+                    return;
+                }
+                object foldersValue, folderValue;
+                if (d.TryGetValue("folders", out foldersValue)) {
+                    var folders = foldersValue as Dictionary<string, object>;
+                    if (folders != null && folders.TryGetValue("game", out folderValue) && folderValue is string) {
+                        connectedGame = OsuInstallation.ValidExecutable(Path.Combine((string)folderValue, "osu!.exe"));
+                        if (connectedGame != null && (!String.Equals(sizedFor, connectedGame, StringComparison.OrdinalIgnoreCase) ||
+                                !String.Equals(gamePath, connectedGame, StringComparison.OrdinalIgnoreCase))) {
+                            gamePath = connectedGame;
+                            PrepareOverlaySize(gamePath);
+                            SaveLayout(true);
+                        }
+                    }
+                }
                 var settings=(Dictionary<string,object>)d["settings"];
                 var currentSkin=(Dictionary<string,object>)settings["skin"];
                 skinLabel.Text="스킨: "+Convert.ToString(currentSkin["name"]);
@@ -420,7 +460,12 @@ internal sealed class TimingForm : Form {
                 tray.Text="Mania Helper · 실행 중";
                 status.Text=Convert.ToString(state["name"])=="play" ? "플레이 중" : "연결됨";
             }
-        } catch { if(!closing && !stopping && backend == connectedBackend)status.Text="연결 대기"; }
+        } catch {
+            if (!closing && !stopping && backend == connectedBackend) {
+                connectedGame = null;
+                status.Text = "연결 대기";
+            }
+        }
         finally {polling=false;}
     }
     void WritePlayer(OsuPlayerProfile p){try{AtomicWrite(Path.Combine(Runtime,"static","ZeroTimingBar","player.json"),json.Serialize(p));statsPreview.SetPlayer(p);}catch{}}
