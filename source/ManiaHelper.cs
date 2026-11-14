@@ -61,6 +61,7 @@ internal sealed class TimingForm : Form {
     readonly CheckBox preview = new CheckBox();
     readonly CheckBox autoStart = new CheckBox();
     readonly NotifyIcon tray=new NotifyIcon();
+    RankedMapsForm rankedMaps;
     readonly EventWaitHandle showSettingsRequest = new EventWaitHandle(false, EventResetMode.AutoReset, ShowSettingsEvent);
     readonly EventWaitHandle reloadAutoStartRequest = new EventWaitHandle(false, EventResetMode.AutoReset, ReloadAutoStartEvent);
     readonly System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer();
@@ -106,6 +107,10 @@ internal sealed class TimingForm : Form {
         };
         SetButton(fit, "스킨에 맞추기", 454, 298, 170, 36);
         fit.Click += delegate { FitToSkin(); };
+        var browseMaps = new SoftButton();
+        SetButton(browseMaps, "매니아 랭크맵", 24, 351, 170, 36);
+        browseMaps.ForeColor = Color.FromArgb(234, 165, 192);
+        browseMaps.Click += delegate { ShowRankedMaps(); };
         AddLabel("판정 HUD", 656, 20, 320, 29, 13F);
         var previewScroll=new Panel{AutoScroll=true};previewScroll.SetBounds(656,56,320,340);Controls.Add(previewScroll);
         statsPreview.SetBounds(0,0,300,660);previewScroll.Controls.Add(statsPreview);
@@ -181,6 +186,15 @@ internal sealed class TimingForm : Form {
     }
     public void CreateHandleForWatcher() { CreateHandle(); }
     void ExitHelper() { closing = true; Close(); }
+    void ShowRankedMaps() {
+        if (rankedMaps == null || rankedMaps.IsDisposed) {
+            rankedMaps = new RankedMapsForm(() => OsuInstallation.Resolve(connectedGame, gamePath));
+            rankedMaps.Show(this);
+        } else {
+            rankedMaps.WindowState = FormWindowState.Normal;
+            rankedMaps.Activate();
+        }
+    }
     void ShowSettings(){Show();WindowState=FormWindowState.Normal;Activate();}
     [DllImport("user32.dll")] static extern bool DestroyIcon(IntPtr h);
     static Icon CreateTrayIcon(){

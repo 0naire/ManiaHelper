@@ -1,5 +1,11 @@
 # Updates
 
+## 1.5.0 — Mania ranked maps
+
+- Browse recent osu!mania Ranked charts and search an osu-pps farming catalog.
+- Compare each difficulty's PP, stars, key count, mods, BPM, length, OD, HP and ranking date.
+- Filter by keys, PP and stars, and download an .osz to open it in osu!.
+
 ## 1.4.0 — Compact settings and osu! auto-start
 
 - Simplify the settings window and keep the timing and HUD previews and controls.
