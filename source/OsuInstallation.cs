@@ -13,6 +13,8 @@ internal static class OsuInstallation {
     static extern bool QueryFullProcessImageName(IntPtr handle, uint flags, StringBuilder filename, ref int length);
     [DllImport("kernel32.dll")]
     static extern bool CloseHandle(IntPtr handle);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool IsWow64Process(IntPtr handle, out bool wow64);
     [DllImport("user32.dll")]
     static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")]
@@ -34,6 +36,38 @@ internal static class OsuInstallation {
         } finally { CloseHandle(handle); }
     }
 
+    static bool Is64BitProcess(int pid) {
+        if (!Environment.Is64BitOperatingSystem) return false;
+        var handle = OpenProcess(QueryLimitedInformation, false, pid);
+        if (handle == IntPtr.Zero) return false;
+        try {
+            bool wow64;
+            return IsWow64Process(handle, out wow64) && !wow64;
+        } finally { CloseHandle(handle); }
+    }
+
+    internal static int RunningStableId(int sessionId, out bool lazerRunning) {
+        int stable = 0;
+        lazerRunning = false;
+        foreach (var process in Process.GetProcessesByName("osu!")) using (process) {
+            try {
+                if (process.SessionId != sessionId || process.HasExited) continue;
+                if (Is64BitProcess(process.Id)) lazerRunning = true;
+                else if (stable == 0) stable = process.Id;
+            } catch (InvalidOperationException) { }
+            catch (System.ComponentModel.Win32Exception) { }
+        }
+        if (stable == 0 && !lazerRunning) {
+            foreach (var process in Process.GetProcessesByName("osulazer")) using (process) {
+                try {
+                    if (process.SessionId == sessionId && !process.HasExited) lazerRunning = true;
+                } catch (InvalidOperationException) { }
+                catch (System.ComponentModel.Win32Exception) { }
+            }
+        }
+        return stable;
+    }
+
     internal static string Resolve(string connected, string saved) {
         uint foreground;
         GetWindowThreadProcessId(GetForegroundWindow(), out foreground);
@@ -41,6 +75,7 @@ internal static class OsuInstallation {
         string focused = null;
         bool running = false;
         foreach (var process in Process.GetProcessesByName("osu!")) using (process) {
+            if (Is64BitProcess(process.Id)) continue;
             running = true;
             string path = ProcessPath(process.Id);
             if (path == null) continue;

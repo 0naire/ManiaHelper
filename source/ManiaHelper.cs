@@ -66,10 +66,11 @@ internal sealed class TimingForm : Form {
     readonly EventWaitHandle reloadAutoStartRequest = new EventWaitHandle(false, EventResetMode.AutoReset, ReloadAutoStartEvent);
     readonly System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer();
     readonly System.Windows.Forms.Timer previewTimer = new System.Windows.Forms.Timer();
+    readonly ConnectionRetry connectionRetry = new ConnectionRetry();
     Process backend;
     ChildJob job;
     bool loading, stopping, polling, closing, starting, previewPolling;
-    bool startedAutomatically;
+    bool startedAutomatically, hasGameData;
     int handledGameId, automaticGameId;
     readonly int sessionId;
     double comboPosition=121;
@@ -328,21 +329,19 @@ internal sealed class TimingForm : Form {
         sizedFor = executable;
     }
     int RunningGameId() {
-        int gameId = 0;
-        foreach (var process in Process.GetProcessesByName("osu!")) {
-            using (process) {
-                try { if (gameId == 0 && process.SessionId == sessionId && !process.HasExited) gameId = process.Id; }
-                catch (InvalidOperationException) { }
-                catch (System.ComponentModel.Win32Exception) { }
-            }
-        }
-        return gameId;
+        bool lazerRunning;
+        return OsuInstallation.RunningStableId(sessionId, out lazerRunning);
     }
     async Task UpdateAutomaticStart() {
         if (closing || starting || stopping || (!autoStart.Checked && !startedAutomatically)) return;
-        int gameId = RunningGameId();
+        bool lazerRunning;
+        int gameId = OsuInstallation.RunningStableId(sessionId, out lazerRunning);
         if (startedAutomatically && automaticGameId != gameId) await StopBackend(true);
         if (gameId == 0) {
+            if (!closing && backend == null && autoStart.Checked) {
+                if (lazerRunning) status.Text = "osu!stable을 실행해 주세요 · lazer 감지됨";
+                else if (handledGameId != 0 || status.Text.EndsWith("lazer 감지됨")) status.Text = "osu! 실행 대기";
+            }
             handledGameId = 0;
             return;
         }
@@ -350,9 +349,10 @@ internal sealed class TimingForm : Form {
         handledGameId = gameId;
         await StartBackend(gameId);
     }
-    async Task StartBackend(int gameId = 0) {
+    async Task StartBackend(int gameId = 0, bool retry = false) {
         if (closing || backend != null || stopping || starting) return;
         starting=true; start.Enabled=false;
+        if (!retry) connectionRetry.Reset();
         try {
             if (!File.Exists(Path.Combine(Runtime, "static", "ZeroTimingBar", "index.html")) ||
                 !File.Exists(Path.Combine(Runtime, "tosu.env")) || !Directory.Exists(Path.Combine(Runtime, "settings")))
@@ -366,6 +366,11 @@ internal sealed class TimingForm : Form {
                     throw new Exception("24050 포트를 다른 프로그램이 사용 중입니다. 기존 tosu를 종료한 후 다시 시작해 주세요.");
             }
             if(closing)return;
+            if (gameId != 0 && RunningGameId() != gameId) {
+                start.Enabled = true;
+                status.Text = "osu!stable 실행 대기";
+                return;
+            }
             status.Text="연결 중…";
             string resolved = OsuInstallation.Resolve(null, gamePath);
             if (resolved != null) gamePath = resolved;
@@ -385,7 +390,7 @@ internal sealed class TimingForm : Form {
             automaticGameId = gameId;
             backend.BeginOutputReadLine(); backend.BeginErrorReadLine();
             stop.Enabled=true;
-            await Task.Delay(900); await Poll();
+            await Task.Delay(900);
         } catch (Exception e) {
             KillOwned(); SaveLayout(false); start.Enabled=true; stop.Enabled=false;
             if (!closing) {
@@ -402,6 +407,7 @@ internal sealed class TimingForm : Form {
     }
     async Task StopBackend(bool gameClosed = false) {
         if(stopping) return;
+        connectionRetry.Reset();
         if (!gameClosed && autoStart.Checked) handledGameId = RunningGameId();
         stopping=true; stop.Enabled=false; preview.Checked=false; SaveLayout(false);
         status.Text="중지 중…";
@@ -410,8 +416,9 @@ internal sealed class TimingForm : Form {
     }
     void KillOwned() {
         connectedGame = null;
-        if(job!=null){job.Dispose();job=null;}
+        hasGameData = false;
         if(backend!=null){try{if(!backend.HasExited)backend.Kill();}catch{}backend.Dispose();backend=null;}
+        if(job!=null){job.Dispose();job=null;}
         startedAutomatically = false;
         automaticGameId = 0;
         trace.UseDemo();
@@ -419,11 +426,13 @@ internal sealed class TimingForm : Form {
         if(!closing)tray.Text="Mania Helper · 중지됨";
     }
     async Task PollPreview(){
-        if(previewPolling||closing||stopping||backend==null)return;
+        if(previewPolling||closing||stopping||backend==null||!hasGameData)return;
         previewPolling=true;
         var connectedBackend = backend;
         try{
             var req=(HttpWebRequest)WebRequest.Create("http://127.0.0.1:24050/json/v2/precise");req.Proxy=null;req.Timeout=800;
+            using (var timeout = new CancellationTokenSource(800))
+            using (timeout.Token.Register(req.Abort))
             using(var response=await req.GetResponseAsync())using(var reader=new StreamReader(response.GetResponseStream())){
                 var d=json.Deserialize<Dictionary<string,object>>(await reader.ReadToEndAsync());
                 if(closing || stopping || backend != connectedBackend)return;
@@ -435,23 +444,46 @@ internal sealed class TimingForm : Form {
             }
         }catch{}finally{previewPolling=false;}
     }
+    async Task WaitForGame() {
+        connectedGame = null;
+        if (hasGameData) {
+            hasGameData = false;
+            trace.UseDemo();
+            statsPreview.UseDemo();
+        }
+        bool lazerRunning;
+        int gameId = OsuInstallation.RunningStableId(sessionId, out lazerRunning);
+        if (connectionRetry.ShouldRestart(gameId, DateTime.UtcNow)) {
+            int automaticId = automaticGameId;
+            stopping = true;
+            status.Text = "osu! 다시 연결 중…";
+            KillOwned();
+            try { await Task.Delay(900); }
+            finally { stopping = false; }
+            if (!closing) await StartBackend(automaticId, true);
+            return;
+        }
+        status.Text = gameId == 0 ? (lazerRunning ? "osu!stable을 실행해 주세요 · lazer 감지됨" : "osu!stable 실행 대기") :
+            connectionRetry.HasRetried(gameId) ? "연결 지연 · osu!와 Helper 실행 권한 확인" : "osu!stable 연결 중…";
+    }
     async Task Poll() {
-        if(polling || closing || stopping || backend==null) return;
+        if(polling || closing || starting || stopping || backend==null) return;
         polling=true;
         var connectedBackend = backend;
+        bool unavailable = false;
         try {
             if(connectedBackend.HasExited){KillOwned();SaveLayout(false);start.Enabled=true;stop.Enabled=false;status.Text="연결 종료됨";return;}
             var req=(HttpWebRequest)WebRequest.Create("http://127.0.0.1:24050/json/v2");
             req.Timeout=1000;req.ReadWriteTimeout=1000;req.Proxy=null;
+            using (var timeout = new CancellationTokenSource(1500))
+            using (timeout.Token.Register(req.Abort))
             using(var response=await req.GetResponseAsync())
             using(var reader=new StreamReader(response.GetResponseStream())) {
                 var d=json.Deserialize<Dictionary<string,object>>(await reader.ReadToEndAsync());
                 if(closing || stopping || backend != connectedBackend)return;
-                if (d.ContainsKey("error")) {
-                    connectedGame = null;
-                    status.Text = "osu! 연결 대기";
-                    return;
-                }
+                if (d == null || d.ContainsKey("error")) throw new InvalidDataException();
+                var state = ReadObject(d, "state");
+                if (state == null) throw new InvalidDataException();
                 object foldersValue, folderValue;
                 if (d.TryGetValue("folders", out foldersValue)) {
                     var folders = foldersValue as Dictionary<string, object>;
@@ -460,27 +492,42 @@ internal sealed class TimingForm : Form {
                         if (connectedGame != null && (!String.Equals(sizedFor, connectedGame, StringComparison.OrdinalIgnoreCase) ||
                                 !String.Equals(gamePath, connectedGame, StringComparison.OrdinalIgnoreCase))) {
                             gamePath = connectedGame;
-                            PrepareOverlaySize(gamePath);
-                            SaveLayout(true);
+                            try {
+                                PrepareOverlaySize(gamePath);
+                                SaveLayout(true);
+                            } catch (IOException e) { Log(e.Message); }
+                            catch (UnauthorizedAccessException e) { Log(e.Message); }
                         }
                     }
                 }
-                var settings=(Dictionary<string,object>)d["settings"];
-                var currentSkin=(Dictionary<string,object>)settings["skin"];
-                skinLabel.Text="스킨: "+Convert.ToString(currentSkin["name"]);
-                var state=(Dictionary<string,object>)d["state"];
-                statsPreview.SetPlay((Dictionary<string,object>)d["play"]);
-                if(playerEnabled.Checked&&d.ContainsKey("profile"))playerTask=UpdatePlayer((Dictionary<string,object>)d["profile"]);
+                var currentSkin = ReadObject(ReadObject(d, "settings"), "skin");
+                var play = ReadObject(d, "play");
+                var profile = ReadObject(d, "profile");
+                if (currentSkin != null && currentSkin.ContainsKey("name")) skinLabel.Text = "스킨: " + Convert.ToString(currentSkin["name"]);
+                if (play != null) statsPreview.SetPlay(play);
+                if (playerEnabled.Checked && profile != null) playerTask = UpdatePlayer(profile);
+                hasGameData = true;
+                connectionRetry.Reset();
                 tray.Text="Mania Helper · 실행 중";
-                status.Text=Convert.ToString(state["name"])=="play" ? "플레이 중" : "연결됨";
+                object stateName;
+                status.Text = state.TryGetValue("name", out stateName) && Convert.ToString(stateName) == "play" ? "플레이 중" : "연결됨";
             }
-        } catch {
-            if (!closing && !stopping && backend == connectedBackend) {
-                connectedGame = null;
-                status.Text = "연결 대기";
-            }
+        } catch (WebException e) {
+            if (e.Response != null) e.Response.Dispose();
+            unavailable = true;
+        } catch (InvalidDataException) {
+            unavailable = true;
+        } catch (Exception e) {
+            Log(e.Message);
+            unavailable = true;
+        } finally {
+            polling = false;
         }
-        finally {polling=false;}
+        if (unavailable && !closing && !stopping && backend == connectedBackend) await WaitForGame();
+    }
+    static Dictionary<string, object> ReadObject(Dictionary<string, object> data, string key) {
+        object value;
+        return data != null && data.TryGetValue(key, out value) ? value as Dictionary<string, object> : null;
     }
     void WritePlayer(OsuPlayerProfile p){try{AtomicWrite(Path.Combine(Runtime,"static","ZeroTimingBar","player.json"),json.Serialize(p));statsPreview.SetPlayer(p);}catch{}}
     async Task UpdatePlayer(Dictionary<string,object> profile){

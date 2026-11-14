@@ -1,5 +1,11 @@
 # Updates
 
+## 1.5.1 — osu!stable reconnect
+
+- Recognize a running osu!stable client separately from lazer and show its connection status.
+- Restart the helper's own tosu once when an existing stable session stays disconnected.
+- Keep the connection active while optional preview or profile data is unavailable.
+
 ## 1.5.0 — Mania ranked maps
 
 - Browse recent osu!mania Ranked charts and search an osu-pps farming catalog.
